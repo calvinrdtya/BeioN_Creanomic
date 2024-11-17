@@ -1,0 +1,258 @@
+<?php
+
+namespace App\Http\Controllers\UserOrder;
+
+use Illuminate\Http\Request;
+use App\Http\Controllers\Controller;
+use App\Models\OrderMotor;
+use App\Models\Motor;
+use Illuminate\Support\Facades\Auth;
+use App\Models\Province;
+use App\Models\Regency;
+use App\Models\District;
+use App\Models\Village;
+use Illuminate\Support\Str;
+
+class UserOrderMotorController extends Controller
+{
+    public function index($motor_id)
+    {
+        // Temukan data motor berdasarkan $motor_id
+        $motor = Motor::findOrFail($motor_id);
+        
+        // Data yang akan dikirim ke view
+        $data = [
+            'provinces' => Province::all(), // Provinsi
+            'regencies' => Regency::all(), // Kabupaten
+            'districts' => District::all(), // Kecamatan
+            'villages' => Village::all(), // Desa
+            'motor' => $motor,
+            'category' => $motor->category,
+            'title' => 'Isi Data Diri',
+        ];
+
+        // Return view dengan data
+        return view('front.pages.transportasi.order.motor.create_order', $data);
+    }
+
+    public function store(Request $request, $motor_id)
+    {
+        function convertDateToMySQLFormat($date)
+        {
+            $months = [
+                "Januari" => "01",
+                "Februari" => "02",
+                "Maret" => "03",
+                "April" => "04",
+                "Mei" => "05",
+                "Juni" => "06",
+                "Juli" => "07",
+                "Agustus" => "08",
+                "September" => "09",
+                "Oktober" => "10",
+                "November" => "11",
+                "Desember" => "12",
+            ];
+    
+            $dateParts = explode(' ', $date);
+            $day = $dateParts[0];
+            $month = $months[$dateParts[1]];
+            $year = $dateParts[2];
+    
+            return "$year-$month-$day";
+        }
+    
+        // Validasi data dari request
+        $request->validate([
+            'title' => 'required|string',
+            'first_name' => 'required|string|max:255',
+            'last_name' => 'required|string|max:255',
+            'no_handphone' => 'required|string',
+            'email' => 'required|email|max:255',
+            'alamat_lengkap' => 'required|string',
+            'provinsi' => 'required|integer',
+            'tgl_pinjam' => 'required|string',
+            'tgl_pengembalian' => 'required|string',
+            'durasi_pinjam' => 'required|string',
+            'kota' => 'required|integer',
+            'kecamatan' => 'required|integer',
+            'desa' => 'required|integer',
+            'note' => 'required|string',
+            'grand_total' => 'required|string',
+        ]);
+    
+        // Pastikan user telah login
+        if (!auth()->check()) {
+            return redirect()->route('account.login')->with('error', 'Anda harus login terlebih dahulu.');
+        }
+    
+        // Temukan data motor berdasarkan $motor_id
+        $motor = Motor::findOrFail($motor_id);
+    
+        // Konversi tanggal dari format Indonesia ke format MySQL
+        $tglPinjam = convertDateToMySQLFormat($request->tgl_pinjam);
+        $tglPengembalian = convertDateToMySQLFormat($request->tgl_pengembalian);
+    
+        // Hitung durasi pinjam dalam hari
+        $startDate = new \DateTime($tglPinjam);
+        $endDate = new \DateTime($tglPengembalian);
+        $durasiPinjam = $endDate->diff($startDate)->days + 1;
+    
+        // Hitung grand total berdasarkan durasi pinjam dan harga motor
+        $grandTotal = $motor->final_price * $durasiPinjam * 1000; // Ubah ke format tanpa desimal
+    
+        // Hitung subtotal
+        $subtotal = $grandTotal;
+    
+        // Dapatkan ID user yang sedang login
+        $userId = Auth::id();
+    
+        // Gabungkan nama provinsi, kota, kecamatan, dan desa menjadi satu string
+        $provinceName = Province::findOrFail($request->provinsi)->name;
+        $cityName = Regency::findOrFail($request->kota)->name;
+        $districtName = District::findOrFail($request->kecamatan)->name;
+        $villageName = Village::findOrFail($request->desa)->name;
+    
+        $address = implode('-', [
+            $provinceName,
+            $cityName,
+            $districtName,
+            $villageName,
+        ]);
+    
+        // Generate invoice number
+        $invoiceNumber = 'INV-' . strtoupper(Str::random(10));
+    
+        // Midtrans Configuration
+        \Midtrans\Config::$serverKey = config('midtrans.server_key');
+        \Midtrans\Config::$isProduction = false;
+        \Midtrans\Config::$isSanitized = true;
+        \Midtrans\Config::$is3ds = true;
+    
+        // Item details
+        $itemDetails = [
+            [
+                'id' => $motor->id,
+                'price' => $grandTotal,
+                'quantity' => 1,
+                'name' => $motor->title,
+            ],
+        ];
+    
+        $params = [
+            'transaction_details' => [
+                'order_id' => $invoiceNumber,
+                'gross_amount' => $grandTotal,
+            ],
+            'customer_details' => [
+                'first_name' => $request->first_name,
+                'last_name' => $request->last_name,
+                'email' => $request->email,
+                'phone' => $request->no_handphone,
+                'billing_address' => [
+                    'address' => $request->alamat_lengkap,
+                ],
+            ],
+            'item_details' => $itemDetails,
+        ];
+    
+        // Dapatkan snap_token dari Midtrans
+        $snapToken = \Midtrans\Snap::getSnapToken($params);
+    
+        $uniqMotor = 'pembayaran-' . strtolower(Str::random(9));
+    
+        // Buat objek OrderMotor baru dengan snap_token
+        $order = OrderMotor::create([
+            'user_id' => $userId,
+            'uniq_motor' => $uniqMotor,
+            'invoice_number' => $invoiceNumber,
+            'motor_id' => $motor->id,
+            'subtotal' => $subtotal,
+            'coupon_code' => $request->input('coupon_code', null),
+            'discount' => 0,
+            'grand_total' => $grandTotal,
+            'payment_status' => 1,
+            'order_type' => 'motor',
+            'title' => $request->title,
+            'first_name' => $request->first_name,
+            'last_name' => $request->last_name,
+            'no_handphone' => $request->no_handphone,
+            'email' => $request->email,
+            'alamat_lengkap' => $request->alamat_lengkap,
+            'tgl_pinjam' => $tglPinjam,
+            'tgl_pengembalian' => $tglPengembalian,
+            'durasi_pinjam' => $durasiPinjam,
+            'note' => $request->input('note', ''),
+            'address' => $address,
+            'snap_token' => $snapToken,
+        ]);
+    
+        // Redirect ke halaman daftar pesanan dengan pesan sukses
+        return redirect()->route('user.order')->with('success', 'Booking Motor Berhasil.');
+    }
+
+    public function payment($uniq_motor)
+    {
+        // Temukan order berdasarkan uniq_motor dan user yang sedang login
+        $order = OrderMotor::where('user_id', auth()->id())
+                            ->where('uniq_motor', $uniq_motor)
+                            ->first();
+
+        if ($order) {
+            // Ambil detail motor terkait
+            $detail = Motor::findOrFail($order->motor_id);
+            $title = "Detail Order Motor";
+
+            $additionalData = [
+                'orderDetails' => OrderMotor::with('motor')->findOrFail($order->id),
+                'motor' => Motor::findOrFail($order->motor_id),
+            ];
+
+            return view("front.pages.transportasi.order.motor.payment", array_merge([
+                'order' => $order,
+                'detail' => $detail,
+                'title' => $title,
+            ], $additionalData));
+        }
+
+        // Jika tidak ditemukan, tampilkan halaman 404
+        return abort(404);
+    }
+
+    public function delete($uniq_motor)
+    {
+        // Temukan order berdasarkan ID
+        $order = OrderMotor::find($uniq_motor);
+
+        if ($order) {
+            // Hapus order
+            $order->delete();
+
+            // Redirect dengan pesan sukses
+            return redirect()->route('user.order')->with('success', 'Order berhasil dihapus.');
+        } else {
+            // Redirect dengan pesan error jika order tidak ditemukan
+            return redirect()->route('user.order')->with('error', 'Order tidak ditemukan.');
+        }
+    }
+
+    public function paymentSuccess($motor_id)
+    {
+        // Mencari order perjalanan berdasarkan motor_id
+        $order_motor = OrderMotor::findOrFail($motor_id);
+        
+        // Mengubah status pembayaran menjadi 2 (Pembayaran Berhasil)
+        $order_motor->payment_status = 2;
+        $order_motor->save();
+        
+        // Mengurangi qty di tabel perlengkapans
+        $motor = Motor::findOrFail($order_motor->motor_id);
+        $motor->qty -= 1;
+        $motor->save();
+        
+        return redirect()->route('user.order')->with('success', 'Pembayaran berhasil');
+    }
+
+
+
+}

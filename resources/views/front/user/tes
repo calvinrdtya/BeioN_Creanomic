@@ -1,0 +1,256 @@
+@extends('front.layouts.app')
+
+@section('content')
+
+    <!-- ======= Breadcrumbs ======= -->
+    <section class="breadcrumbs">
+        <div class="container">
+            <ol class="all mt-3">
+                <li><a href="{{ route('front.home') }}" class="title3">Home</a></li>
+                <li class="title2">Cart</li>
+            </ol>
+        </div>
+    </section>
+    <!-- End Breadcrumbs -->
+
+    <div class="user-riwayat pb-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-md-8">
+                    <div class="card p-3 border-0">
+                        <div class="row g-0">
+                            <div class="col-md-2">
+                                <div class="card m-0 p-0 border-0">
+                                    <p class="title-sub my-0 ms-2">Item</p>
+                                </div>
+                            </div>
+                            <div class="col-md-4"></div>
+                            <div class="col-md-3">
+                                <div class="card m-0 p-0 border-0">
+                                    <p class="title-sub my-0 ms-2">Harga</p>
+                                </div>
+                            </div>
+                            <div class="col-md-2">
+                                <div class="card m-0 p-0 border-0">
+                                    <p class="title-sub my-0 text-center">Jumlah</p>
+                                </div>
+                            </div>
+                            <hr class="my-2">
+                        </div>
+                        <div class="row g-0">
+                            @php
+                                $perjalananMap = $perjalanans->keyBy('id');
+                            @endphp
+                            @foreach ($carts as $cart)
+                                @php
+                                    $perjalanan = $perjalananMap->get($cart->product_id);
+                                @endphp
+                                @if ($perjalanan)
+                                    <div class="col-md-2 p-1">
+                                        <div class="card justify-content-center h-100 border-0">
+                                            @if (!empty($perjalanan->thumbnail))
+                                                <img src="{{ asset('img/' . $perjalanan->thumbnail) }}" alt="Perjalanan Image" class="img-fluid" width="90%">
+                                            @else
+                                                <img src="{{ asset('front-assets/img_blank.jpg') }}" alt="Default Image"/>
+                                            @endif
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="card justify-content-center h-100 border-0">
+                                            <span class="ms-2 text-capitalize">{{ $perjalanan->title }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-3">
+                                        <div class="card justify-content-center h-100 border-0">
+                                            <span class="ms-2 text-capitalize">Rp {{ $perjalanan->final_price }}</span>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-2">
+                                        <div class="card d-flex justify-content-center h-100 border-0">
+                                            <div class="d-flex align-items-center justify-content-center">
+                                                <div class="input-group-btn">
+                                                    <button class="btn btn-sm btn-all btn-minus" onclick="updateQty(-1, {{ $cart->id }})">
+                                                        <i class="fa fa-minus"></i>
+                                                    </button>
+                                                </div>
+                                                <input readonly type="text" name="input-qty" id="input-qty-{{ $cart->id }}" class="form-control form-control-sm w-25 border-0 text-center mx-2" value="{{ $cart->qty }}" data-final-price="{{ $perjalanan->final_price }}">
+                                                <div class="input-group-btn">
+                                                    <button class="btn btn-sm btn-all btn-plus" onclick="updateQty(1, {{ $cart->id }})">
+                                                        <i class="fa fa-plus"></i>
+                                                    </button>
+                                                </div>
+                                            </div>                                                              
+                                        </div>
+                                    </div>
+                                    <div class="col-md-1">
+                                        <div class="card justify-content-center align-items-center h-100 border-0">
+                                            <form action="{{ route('front.delete.cart', $cart->id) }}" method="POST" style="display:inline;">
+                                                @csrf
+                                                @method('DELETE')
+                                                <button type="submit" class="btn btn-link p-0">
+                                                    <i class="fas fa-times"></i>
+                                                </button>
+                                            </form>                                            
+                                        </div>
+                                    </div>
+                                @endif
+                            @endforeach
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="card p-3">
+                        @foreach ($perjalanans as $perjalanan)
+                        <div class="title-paket d-flex justify-content-between align-items-center mb-2">
+                            <h5 class="titles mb-0">Sub Harga</h5>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center my-3">
+                            <p class="title-sub my-0">Rincian</p>
+                            <div class="price-end text-end">
+                                <h4 class="mb-0">Rp {{ $perjalanan->final_price }}</h4>
+                            </div>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center my-3">
+                            <h5 class="titles mb-0">Harga Total</h5>
+                            <div class="price-end text-end">
+                                <h4 id="totalHarga-{{ $perjalanan->id }}" class="mb-0">Rp {{ $perjalanan->final_price }}</h4>
+                            </div>
+                        </div>
+                        
+                        <div class="price align-items-center justify-content-end">
+                            @if ($perjalanan->price_discount === null)
+                                <div class="price-end d-flex align-items-center justify-content-end">
+                                    <h4 class="mb-0">Rp {{ $perjalanan->final_price }}</h4>
+                                    <p class="my-0 title-sub">&nbsp; / pax</p>
+                                </div>
+                            @else
+                            <h5 class="price-sub mb-0 ms-auto text-decoration-line-through text-end">Rp {{ $perjalanan->price }}</h5>
+                            <div class="price-end d-flex align-items-center justify-content-end">
+                                <h4 class="mb-0">Rp {{ $perjalanan->final_price }}</h4>
+                                <p class="my-0 title-sub">&nbsp; / pax</p>
+                            </div>
+                            @endif
+                        </div>
+                        <hr class="my-4">
+                        <div class="row">
+                            <div class="col-md-12">
+                                <button type="submit" class="button-booking w-100 border-0">Pesan</button>
+                            </div>
+                        </div>
+                        {{-- @endforeach --}}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    
+    
+
+<script>
+
+var finalPrices = @json($perjalanans->pluck('final_price', 'id'));
+
+const finalPrices = @json($carts->pluck('perjalanan.final_price', 'id'));
+
+function updateQty(change, cartId) {
+    const qtyInput = document.getElementById(`input-qty-${cartId}`);
+    let currentQty = parseInt(qtyInput.value);
+
+    if (isNaN(currentQty)) {
+        currentQty = 0;
+    }
+
+    currentQty += change;
+
+    if (currentQty < 1) {
+        currentQty = 1;
+    }
+
+    qtyInput.value = currentQty;
+
+    // Menghitung total harga berdasarkan final_price yang diambil dari PHP
+    const finalPrice = finalPrices[cartId];
+    const totalHarga = finalPrice * currentQty;
+
+    // Format total harga menjadi Rupiah
+    const formattedTotal = formatRupiah(totalHarga);
+
+    // Tampilkan hasilnya di elemen HTML yang sesuai
+    document.getElementById(`totalHarga-${cartId}`).innerHTML = formattedTotal;
+
+    // Kirim permintaan AJAX untuk memperbarui kuantitas
+    updateCart(cartId, currentQty);
+}
+
+function formatRupiah(number) {
+    return 'Rp ' + number.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+}
+
+
+// function updateCart(cartId, qty) {
+//     // Buat objek XMLHttpRequest
+//     var xhr = new XMLHttpRequest();
+//     var url = "/update-cart"; // Sesuaikan URL endpoint untuk update cart
+
+//     xhr.open("POST", url, true);
+//     xhr.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
+//     xhr.setRequestHeader("X-CSRF-TOKEN", document.querySelector('meta[name="csrf-token"]').getAttribute('content'));
+
+//     xhr.onreadystatechange = function () {
+//         if (xhr.readyState === 4 && xhr.status === 200) {
+//             console.log('Cart updated successfully');
+//         }
+//     };
+
+//     // Kirim data sebagai JSON
+//     xhr.send(JSON.stringify({
+//         cart_id: cartId,
+//         qty: qty
+//     }));
+// }
+</script>
+
+
+@endsection
+
+@section('customJs')
+{{-- <script>
+function updateQty(change) {
+    const qtyInput = document.getElementById('input-qty');
+    let currentQty = parseInt(qtyInput.value);
+
+    if (isNaN(currentQty)) {
+        currentQty = 0;
+    }
+
+    currentQty += change;
+
+    if (currentQty < 1) {
+        currentQty = 1;
+    }
+
+    qtyInput.value = currentQty;
+}
+
+</script> --}}
+
+<script>
+    // $(function () {
+    //     $("#example1").DataTable({
+    //         "responsive": true, "lengthChange": false, "autoWidth": false, "searching": false,"paging": false,"info": false,
+    //     }).buttons().container().appendTo('#example1_wrapper .col-md-6:eq(0)');
+    //     $('#example2').DataTable({
+    //         "paging": true,
+    //         "lengthChange": false,
+    //         "searching": false,
+    //         "ordering": true,
+    //         "info": true,
+    //         "autoWidth": false,
+    //         "responsive": true,
+    //     });
+    // });
+</script>
+
+@endsection
+

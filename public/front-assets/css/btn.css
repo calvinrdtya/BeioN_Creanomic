@@ -1,0 +1,86 @@
+.button-action {
+    padding: 6px 12px;
+    border-radius: 8px;
+    color: #4154f1;
+    font-size: 18px;
+    /* border: 1px solid #4154f1; */
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: background-color 0.5s, color 0.5s, padding 0.5s, margin-left 0.5s, border-color 0.5s;
+    margin: 5px 0; /* Menambahkan jarak atas dan bawah pada tombol */
+}
+
+.button-action:hover {
+    background-color: #717ff5;
+    color: #FFF;
+}
+
+.button-action:focus {
+    border-color: #4154f1;
+}
+
+.button-action.active {
+    background-color: #4154f1; /* Latar belakang biru saat aktif */
+    color: #fff; /* Warna teks putih saat aktif */
+    border: 2px solid #4154f1; /* Border tetap dengan warna biru */
+}
+
+
+
+
+.button-booking {
+    background-color: #4154f1;
+    padding: 6px;
+    border-radius: 8px;
+    color: #FFF;
+    font-size: 18px;
+    transition: background-color 0.5s, color 0.5s, padding 0.5s, margin-left 0.5s, border-color 0.5s;
+}
+.button-booking:hover {
+    background-color: #717ff5;
+    color: #FFF;
+}
+.button-cancel {
+    background-color: #ff0000;
+    padding: 6px;
+    border-radius: 8px;
+    color: #FFF;
+    font-size: 18px;
+    transition: background-color 0.5s, color 0.5s, padding 0.5s, margin-left 0.5s, border-color 0.5s;
+}
+.button-cancel:hover {
+    background-color: #fb5f5f;
+    color: #FFF;
+}
+
+
+
+
+  .irs--round {
+    height: 25px;
+}
+  .irs--round .irs-bar {
+    height: 4px;
+    border-radius: 50px;
+    background: #4154f1;
+}
+
+.irs--round .irs-handle {
+    width: 20px;
+    height: 20px;
+    top: 27px;
+    border-radius: 50%;
+}
+
+/* .irs--round .irs-handle:hover,
+.irs--round .irs-handle:active {
+    background: #2980b9;
+    border-color: #2980b9;
+} */
+
+.irs--round .irs-line {
+    /* height: 10px; */
+    background: #ddd;
+    border-radius: 50px;
+}

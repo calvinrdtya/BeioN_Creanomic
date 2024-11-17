@@ -1,0 +1,1 @@
+<a href="{{ route('front.user.dashboard') }}"></a>
